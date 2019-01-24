@@ -1,0 +1,53 @@
+body {
+    position: relative;
+}
+
+.elelement {
+    z-index: 1;
+    position: absolute;
+}
+
+.unselectable {
+    user-drag: none;
+    user-select: none;
+    -moz-user-select: none;
+    -webkit-user-drag: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+}
+
+.dock {
+    z-index: 2;
+    border-style: solid;
+    border-color: black;
+    border-width: 2px;
+    height: 70px;
+    width: 130px;
+    position: absolute;
+}
+
+.docker {
+    z-index: 3;
+    background-color: black;
+    height: 10px;
+    width: 10px;
+    border-radius: 50%;
+    position: absolute;
+}
+
+.info {
+    z-index: 0;
+    position: absolute;
+}
+
+.settings {
+    z-index: 9999;
+    border-style: solid;
+    border-color: black;
+    background-color: white;
+    background: white;
+    border-width: 2px;
+    height: 70px;
+    width: 130px;
+    position: absolute;
+}

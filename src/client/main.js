@@ -285,7 +285,7 @@ class Source extends ElElement {
         this.voltageMenu = document.createElement("input");
         this.voltageMenu.value = this.voltage;
         this.voltageMenu.style.width = 130 + "px";
-        this.voltageMenuText = document.createTextNode("V/V");
+        this.voltageMenuText = document.createTextNode("U/V");
 
         this.frekMenu = document.createElement("input");
         this.frekMenu.value = this.frek;

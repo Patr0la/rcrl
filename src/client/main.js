@@ -112,6 +112,8 @@ class ElElement {
     }
 
     drawDocks() {
+        if (!(this.docked || this.type === "source"))
+            return;
         this.callculateDocks();
         if (this.parralerDock)
             this.parralerDock.style.display = "block";
@@ -138,6 +140,8 @@ class ElElement {
             this.ManagedLineParraler = new LineManager(this.img.offsetLeft + 130, this.img.offsetTop + 64, parent.img.offsetLeft + 130, parent.img.offsetTop + 64);
         } else {
             if (parent.type === "source") {
+                this.parentSource = parent;
+
                 this.img.style.top = parent.img.offsetTop - 130 + 'px';
                 this.img.style.left = parent.img.offsetLeft + 'px';
             } else {
@@ -153,6 +157,10 @@ class ElElement {
         }
         this.connected = dockType;
 
+        if (parent.parentSource)
+            this.parentSource = parent.parentSource;
+
+        console.log(this.parentSource)
         Update();
         return true;
     }
@@ -529,7 +537,7 @@ class AmperMetar extends ElElement {
         let v = I;
 
         if (this.info) {
-            this.textNode.textContent = "A: " + Number(v).toFixed(2);
+            this.textNode.textContent = "I: " + Number(v).toFixed(2) + "A";
             return;
         }
 
@@ -541,7 +549,7 @@ class AmperMetar extends ElElement {
         this.info.style.top = this.img.offsetTop - 15 + "px";
         this.info.style.left = this.img.offsetLeft + "px";
 
-        this.textNode = document.createTextNode("A: " + Number(v).toFixed(2));
+        this.textNode = document.createTextNode("I: " + Number(v).toFixed(2) + "A");
 
         this.info.appendChild(this.textNode);
 
@@ -569,10 +577,10 @@ class VoltMetar extends ElElement {
         else if (this.parralerConnectionParent.type == "kondenzator") {
             v = (1 / (this.parralerConnectionParent.cap * Math.pow(10, -6) * omega)) * I;
         } else if (this.parralerConnectionParent.type == "zavojnica") {
-            v = I * omega * this.parralerConnectionParent.l;
+            v = I * omega * this.parralerConnectionParent.l * Math.pow(10, -3);
         }
         if (this.info) {
-            this.textNode.textContent = "V: " + Number(v).toFixed(2);
+            this.textNode.textContent = "U: " + Number(v).toFixed(2) + "V";
             return;
         }
 
@@ -584,7 +592,7 @@ class VoltMetar extends ElElement {
         this.info.style.top = this.img.offsetTop - 15 + "px";
         this.info.style.left = this.img.offsetLeft + "px";
 
-        this.textNode = document.createTextNode("V: " + Number(v).toFixed(2));
+        this.textNode = document.createTextNode("U: " + Number(v).toFixed(2) + "V");
 
         this.info.appendChild(this.textNode);
 
@@ -676,54 +684,65 @@ function createLine(x1, y1, x2, y2) {
 
 
 function Update() {
-    let r = false;
-    let c = false;
-    let l = false;
-    let s = false;
-    let v = [];
-    let a = [];
+    var sources = [];
 
-    for (var i = 0; i < elElements.length; i++) {
-        if (!elElements[i].src) {
-            if (elElements[i].type == "otpornik")
-                r = elElements[i];
-            if (elElements[i].type == "kondenzator")
-                c = elElements[i];
-            if (elElements[i].type == "zavojnica")
-                l = elElements[i];
+    for (var i = 0; i < elElements.length; i++)
+        if (!elElements[i].src)
             if (elElements[i].type == "source")
-                s = elElements[i];
-            if (elElements[i].type == "ametar")
-                a.push(elElements[i]);
-            if (elElements[i].type == "vmetar")
-                v.push(elElements[i]);
+                sources.push(elElements[i]);
+
+    for (var si = 0; si < sources.length; si++) {
+
+        let s = sources[si];
+
+        let r = false;
+        let c = false;
+        let l = false;
+
+        let v = [];
+        let a = [];
+
+        for (var i = 0; i < elElements.length; i++) {
+            if (!elElements[i].src && elElements[i].parentSource && elElements[i].parentSource.id === s.id) {
+                if (elElements[i].type == "otpornik")
+                    r = elElements[i];
+                if (elElements[i].type == "kondenzator")
+                    c = elElements[i];
+                if (elElements[i].type == "zavojnica")
+                    l = elElements[i];
+                if (elElements[i].type == "ametar")
+                    a.push(elElements[i]);
+                if (elElements[i].type == "vmetar")
+                    v.push(elElements[i]);
+            }
         }
-    }
 
 
-    if (!s)
-        return;
+        if (!s)
+            return;
 
-    var Z, I;
-    var omega = (2 * Math.PI) / (1 / s.frek)
-    if (r && c && !l)
-        Z = Math.sqrt(Math.pow(r.otp, 2) + Math.pow(1 / (omega * c.cap * Math.pow(10, -6)), 2));
-    else if (r && l)
-        Z = Math.sqrt(Math.pow(r.otp, 2) + Math.pow(omega * l.l, 2));
-    else if (r && l && c)
-        Z = Math.sqrt(Math.pow(r.otp, 2) + Math.pow(Math.abs(omega * l.l - (1 / (omega * c.cap * Math.pow(10, -6))), 2)));
-    else return;
+        var Z, I;
+        var omega = 2 * Math.PI * s.frek;
+        if (r && c && !l) {
+            Z = Math.sqrt(Math.pow(r.otp, 2) + Math.pow(1 / (omega * c.cap * Math.pow(10, -6)), 2));
+        } else if (r && l && !c) {
+            Z = Math.sqrt(Math.pow(r.otp, 2) + Math.pow(omega * l.l * Math.pow(10, -3), 2));
+        }
+        else if (r && l && c) {
+            Z = Math.sqrt(Math.pow(r.otp, 2) + Math.pow(Math.abs(omega * l.l * Math.pow(10, -3) - (1 / (omega * c.cap * Math.pow(10, -6)))),2));
+        } else return;
 
-    console.log(Z);
-    I = s.voltage / Z;
+        console.log(Z);
+        I = s.voltage / Z;
 
 
 
-    for (var i = 0; i < a.length; i++) {
-        a[i].setA(Z, I, omega, s.voltage);
-    }
+        for (var i = 0; i < a.length; i++) {
+            a[i].setA(Z, I, omega, s.voltage);
+        }
 
-    for (var i = 0; i < v.length; i++) {
-        v[i].setV(Z, I, omega, s.voltage);
+        for (var i = 0; i < v.length; i++) {
+            v[i].setV(Z, I, omega, s.voltage);
+        }
     }
 }

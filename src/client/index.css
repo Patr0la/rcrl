@@ -26,12 +26,8 @@ body {
     position: absolute;
 }
 
-.docker {
+.bin {
     z-index: 3;
-    background-color: black;
-    height: 10px;
-    width: 10px;
-    border-radius: 50%;
     position: absolute;
 }
 

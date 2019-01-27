@@ -12,6 +12,7 @@ const otp = fs.readFileSync("client/images/otpornik.png");
 const kon = fs.readFileSync("client/images/kondenzator.png");
 const am = fs.readFileSync("client/images/ametar.png");
 const vm = fs.readFileSync("client/images/vmetar.png");
+const bin = fs.readFileSync("client/images/bin.png");
 
 
 http.createServer((req, res) => {
@@ -66,6 +67,11 @@ http.createServer((req, res) => {
                 'Content-Type': 'plain/image'
             });
             res.end(vm);
+        } else if (req.url == "/images/bin.png") {
+            res.writeHead(200, {
+                'Content-Type': 'plain/image'
+            });
+            res.end(bin);
         }
     }
 }).listen(8000);

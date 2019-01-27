@@ -1,5 +1,5 @@
 var elElementCid = 0;
-var currentMovingElementId = 0;
+var currentMovingElementId = false;
 
 const parraler = "p";
 const serial = "s";
@@ -81,6 +81,9 @@ class ElElement {
     }
 
     mouseDown(e) {
+        if (currentMovingElementId !== false)
+            return;
+
         this.moving = true;
         currentMovingElementId = this.id;
 
@@ -95,6 +98,8 @@ class ElElement {
     }
 
     mouseUp(e) {
+        if (e.clientY < 130)
+            return;
         this.moving = false;
         currentMovingElementId = false;
 
@@ -102,13 +107,17 @@ class ElElement {
     }
 
     move(e) {
-        if (!this.moving || this.docked) return;
-        if (this.src) {
-            this.src = false;
-            elElements.push(new elElementsOptions[this.type](this.srcx, this.srcy, true));
+        if (!this.moving) return;
+        if (this.docked) {
+
+        } else {
+            if (this.src) {
+                this.src = false;
+                elElements.push(new elElementsOptions[this.type](this.srcx, this.srcy, true));
+            }
+            this.img.style.top = (e.clientY - this.offY) + 'px';
+            this.img.style.left = (e.clientX - this.offX) + 'px';
         }
-        this.img.style.top = (e.clientY - this.offY) + 'px';
-        this.img.style.left = (e.clientX - this.offX) + 'px';
     }
 
     drawDocks() {
@@ -128,10 +137,7 @@ class ElElement {
             this.serialDock.style.display = "none";
     }
 
-    dock(dockType, parent) {
-        this.mouseUp();
-        this.docked = true;
-
+    dock(dockType, parent, e) {
         if (dockType == "p" && parent.type !== "source") {
             this.img.style.top = parent.img.offsetTop - 130 + 'px';
             this.img.style.left = parent.img.offsetLeft + 'px';
@@ -159,6 +165,9 @@ class ElElement {
 
         if (parent.parentSource)
             this.parentSource = parent.parentSource;
+
+        this.mouseUp(e);
+        this.docked = true;
 
         console.log(this.parentSource)
         Update();
@@ -198,10 +207,10 @@ class ElElement {
 
             });
 
-            this.parralerDock.addEventListener("mouseup", () => {
+            this.parralerDock.addEventListener("mouseup", (e) => {
                 if (currentMovingElementId !== false) {
-                    var t = elElements.find((v) => { return v.id === currentMovingElementId });
-                    if (t && t.dock(parraler, this)) {
+                    var t = elElements.find((v) => { return v && v.id === currentMovingElementId });
+                    if (t && t.dock(parraler, this, e)) {
                         this.parralerConnection = t.id;
                         document.body.removeChild(this.parralerDock);
 
@@ -250,10 +259,10 @@ class ElElement {
                 this.elementHovers = false;
             });
 
-            this.serialDock.addEventListener("mouseup", () => {
+            this.serialDock.addEventListener("mouseup", (e) => {
                 if (currentMovingElementId !== false) {
-                    var t = elElements.find((v) => { return v.id === currentMovingElementId });
-                    if (t && t.dock(serial, this)) {
+                    var t = elElements.find((v) => { return v && v.id === currentMovingElementId });
+                    if (t && t.dock(serial, this, e)) {
                         this.serialConection = t.id;
                         document.body.removeChild(this.serialDock);
 
@@ -533,6 +542,14 @@ class AmperMetar extends ElElement {
     callculateDocks() {
     }
 
+
+    dock(dockType, parent, e) {
+        if (dockType === serial)
+            return super.dock(dockType, parent, e)
+        else
+            return false;
+    }
+
     setA(Z, I, omega, V) {
         let v = I;
 
@@ -567,6 +584,14 @@ class VoltMetar extends ElElement {
     }
 
     callculateDocks() {
+    }
+
+
+    dock(dockType, parent, e) {
+        if (dockType === parraler)
+            return super.dock(dockType, parent, e)
+        else
+            return false;
     }
 
     setV(Z, I, omega, V) {
@@ -619,7 +644,13 @@ document.addEventListener("DOMContentLoaded", () => {
     //document.getElementById('zavojnica').addEventListener('mousedown', mouseDown, false);
     //document.getElementById('kondenzator').addEventListener('mousedown', mouseDown, false);
 
-    var w = screen.width;
+    var w = window.innerWidth
+        || document.documentElement.clientWidth
+        || document.body.clientWidth;
+
+    var h = window.innerHeight
+        || document.documentElement.clientHeight
+        || document.body.clientHeight;
 
     elElements.push(new Source(w / 6 * 0, -15, true))
     elElements.push(new Zavojnica(w / 6 * 1, -15, true))
@@ -632,19 +663,49 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
+    let bin = document.createElement("img");
+    bin.src = "images/bin.png"
+    bin.classList.add("bin");
 
+    var mouseEntered = false;
+
+    bin.addEventListener("mouseenter", () => {
+        mouseEntered = true;
+    });
+
+    bin.addEventListener("mouseleave", () => {
+        mouseEntered = false;
+    });
+
+    bin.addEventListener("mouseup", (e) => {
+        if (!mouseEntered || !currentMovingElementId)
+            return;
+
+        let temp = currentMovingElementId;
+
+        elElements[temp].mouseUp(e);
+
+        document.body.removeChild(elElements[temp].img);
+        elElements[temp] = null;
+    });
+
+
+    bin.style.top = h - 130 + "px"
+    bin.style.left = 90 + "%";
+
+    document.body.appendChild(bin);
 });
 
 
 function drawAllDocks(callerId) {
     for (var i = 0; i < elElements.length; i++)
-        if (elElements[i].id != callerId && !elElements[i].src)
+        if (elElements[i] && elElements[i].id != callerId && !elElements[i].src)
             elElements[i].drawDocks();
 }
 
 function hideAllDocks(callerId) {
     for (var i = 0; i < elElements.length; i++)
-        if (elElements[i].id != callerId && !elElements[i].src)
+        if (elElements[i] && elElements[i].id != callerId && !elElements[i].src)
             elElements[i].hideDocks();
 }
 
@@ -687,7 +748,7 @@ function Update() {
     var sources = [];
 
     for (var i = 0; i < elElements.length; i++)
-        if (!elElements[i].src)
+        if (elElements[i] && !elElements[i].src)
             if (elElements[i].type == "source")
                 sources.push(elElements[i]);
 
@@ -703,6 +764,9 @@ function Update() {
         let a = [];
 
         for (var i = 0; i < elElements.length; i++) {
+            if (!elElements[i])
+                continue;
+
             if (!elElements[i].src && elElements[i].parentSource && elElements[i].parentSource.id === s.id) {
                 if (elElements[i].type == "otpornik")
                     r = elElements[i];
@@ -729,7 +793,7 @@ function Update() {
             Z = Math.sqrt(Math.pow(r.otp, 2) + Math.pow(omega * l.l * Math.pow(10, -3), 2));
         }
         else if (r && l && c) {
-            Z = Math.sqrt(Math.pow(r.otp, 2) + Math.pow(Math.abs(omega * l.l * Math.pow(10, -3) - (1 / (omega * c.cap * Math.pow(10, -6)))),2));
+            Z = Math.sqrt(Math.pow(r.otp, 2) + Math.pow(Math.abs(omega * l.l * Math.pow(10, -3) - (1 / (omega * c.cap * Math.pow(10, -6)))), 2));
         } else return;
 
         console.log(Z);

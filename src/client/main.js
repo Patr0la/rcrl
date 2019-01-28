@@ -5,17 +5,44 @@ const parraler = "p";
 const serial = "s";
 
 class LineManager {
-    constructor(x1, y1, x2, y2) {
-        this.line1 = createLine(x1, y1, x1, y2);
-        this.line2 = createLine(x1, y2, x2, y2);
+    constructor(x1, y1, x2, y2, t) {
+        this.x1 = x1;
+        this.y1 = y1;
+        this.x2 = x2;
+        this.y2 = y2;
+
+        this.t = t;
+
+        this.build();
+    }
+
+    build() {
+        this.line1 = createLine(this.x1, this.y1, this.x1, this.y2);
+        this.line2 = createLine(this.x1, this.y2, this.x2, this.y2);
 
         document.body.appendChild(this.line1);
         document.body.appendChild(this.line2);
     }
 
     remove() {
-        document.body.removeChild(this.line1);
-        document.body.removeChild(this.line2);
+        if (this.line1)
+            document.body.removeChild(this.line1);
+        if (this.line2)
+            document.body.removeChild(this.line2);
+
+        this.line = null;
+        this.line2 = null;
+    }
+
+    move(x1, y1, x2, y2) {
+        this.remove();
+
+        this.x1 = x1;
+        this.y1 = y1;
+        this.x2 = x2;
+        this.y2 = y2;
+
+        this.build();
     }
 }
 
@@ -62,6 +89,8 @@ class ElElement {
         this.serialConection = 0;
         this.parralerConnection = 0;
 
+        if (this.type == "source")
+            this.parentSource == this;
         if (!this.src)
             this.callculateDocks();
     }
@@ -90,7 +119,29 @@ class ElElement {
         this.offY = e.clientY - parseInt(this.img.offsetTop);
         this.offX = e.clientX - parseInt(this.img.offsetLeft);
 
-        drawAllDocks(this.id);
+        if (this.docked && (this.parentSource || this.type == "source")) {
+
+            this.elementsToMove = [];
+
+            for (var i = 0; i < elElements.length; i++) {
+                if (elElements[i] && !elElements[i].src &&
+                    (((this.type == "source" && elElements[i].parentSource && elElements[i].parentSource.id === this.id) || elElements[i].id === this.id) ||
+                        ((elElements[i].parentSource && elElements[i].parentSource.id === this.parentSource.id)
+                            || (this.parentSource && elElements[i].id === this.parentSource.id)))) {
+                    this.elementsToMove.push(elElements[i]);
+                }
+            }
+
+            for (var i = 0; i < this.elementsToMove.length; i++) {
+                this.elementsToMove[i].offX = e.clientX - parseInt(this.elementsToMove[i].img.offsetLeft);
+                this.elementsToMove[i].offY = e.clientY - parseInt(this.elementsToMove[i].img.offsetTop);
+                this.elementsToMove[i].move(e, true);
+            }
+
+        }
+        else {
+            drawAllDocks(this.id);
+        }
     }
 
 
@@ -100,16 +151,28 @@ class ElElement {
     mouseUp(e) {
         if (e.clientY < 130)
             return;
+
+        if (this.elementsToMove) {
+            this.move(e);
+            this.elementsToMove = null;
+        }
+
         this.moving = false;
         currentMovingElementId = false;
+
+        setTimeout(() => {
+
+        }, 500);
 
         hideAllDocks(this.id);
     }
 
-    move(e) {
-        if (!this.moving) return;
-        if (this.docked) {
-
+    move(e, groupMove) {
+        if (!this.moving && !groupMove) return;
+        if (this.docked && (this.parentSource || this.type == "source") && !groupMove) {
+            for (var i = 0; i < this.elementsToMove.length; i++) {
+                this.elementsToMove[i].move(e, true);
+            }
         } else {
             if (this.src) {
                 this.src = false;
@@ -117,6 +180,18 @@ class ElElement {
             }
             this.img.style.top = (e.clientY - this.offY) + 'px';
             this.img.style.left = (e.clientX - this.offX) + 'px';
+
+            if (this.ManagedLineParraler) {
+                if (this.parralerConnection)
+                    this.ManagedLineParraler.move(this.img.offsetLeft, this.img.offsetTop + 64, this.parralerConnection.img.offsetLeft, this.parralerConnection.img.offsetTop + 64);
+                else if (this.parralerConnectionParent)
+                    this.ManagedLineParraler.move(this.img.offsetLeft + 130, this.img.offsetTop + 64, this.parralerConnectionParent.img.offsetLeft + 130, this.parralerConnectionParent.img.offsetTop + 64);
+            } if (this.ManagedLineSerial) {
+                if (this.serialConection)
+                    this.ManagedLineSerial.move(this.img.offsetLeft + 130, this.img.offsetTop + 64, this.serialConection.img.offsetLeft, this.serialConection.img.offsetTop + 64);
+                else if (this.serialConectionParent)
+                    this.ManagedLineSerial.move(this.img.offsetLeft + 130, this.img.offsetTop + 64, this.parentSource.img.offsetLeft + 130, this.parentSource.img.offsetTop + 64);
+            }
         }
     }
 
@@ -169,7 +244,6 @@ class ElElement {
         this.mouseUp(e);
         this.docked = true;
 
-        console.log(this.parentSource)
         Update();
         return true;
     }
@@ -211,7 +285,7 @@ class ElElement {
                 if (currentMovingElementId !== false) {
                     var t = elElements.find((v) => { return v && v.id === currentMovingElementId });
                     if (t && t.dock(parraler, this, e)) {
-                        this.parralerConnection = t.id;
+                        this.parralerConnection = t;
                         document.body.removeChild(this.parralerDock);
 
                         this.parralerDock = null;
@@ -263,7 +337,7 @@ class ElElement {
                 if (currentMovingElementId !== false) {
                     var t = elElements.find((v) => { return v && v.id === currentMovingElementId });
                     if (t && t.dock(serial, this, e)) {
-                        this.serialConection = t.id;
+                        this.serialConection = t;
                         document.body.removeChild(this.serialDock);
 
                         this.serialDock = null;
@@ -542,6 +616,13 @@ class AmperMetar extends ElElement {
     callculateDocks() {
     }
 
+    move(e, groupMove) {
+        if (this.info && groupMove) {
+            this.info.style.top = (e.clientY - this.offY) + 'px';
+            this.info.style.left = (e.clientX - this.offX) + 'px';
+        }
+        super.move(e, groupMove);
+    }
 
     dock(dockType, parent, e) {
         if (dockType === serial)
@@ -586,6 +667,13 @@ class VoltMetar extends ElElement {
     callculateDocks() {
     }
 
+    move(e, groupMove) {
+        if (this.info && groupMove) {
+            this.info.style.top = (e.clientY - this.offY) + 'px';
+            this.info.style.left = (e.clientX - this.offX) + 'px';
+        }
+        super.move(e, groupMove);
+    }
 
     dock(dockType, parent, e) {
         if (dockType === parraler)
@@ -638,6 +726,7 @@ var elElementsOptions = {
     ametar: AmperMetar,
     vmetar: VoltMetar,
 };
+
 document.addEventListener("DOMContentLoaded", () => {
     //document.getElementById('izvor').addEventListener('mousedown', mouseDown, false);
     //document.getElementById('otpornik').addEventListener('mousedown', mouseDown, false);
@@ -681,12 +770,40 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!mouseEntered || !currentMovingElementId)
             return;
 
-        let temp = currentMovingElementId;
+        let temp = elElements[currentMovingElementId];
 
-        elElements[temp].mouseUp(e);
+        if (temp.docked) {
+            for (var i = 0; i < elElements.length; i++) {
+                if (elElements[i] && !elElements[i].src &&
+                    (((temp.type == "source" && elElements[i].parentSource && elElements[i].parentSource.id === temp.id) || elElements[i].id === temp.id) ||
+                        ((elElements[i].parentSource && elElements[i].parentSource.id === temp.parentSource.id)
+                            || elElements[i].id === temp.parentSource.id))) {
 
-        document.body.removeChild(elElements[temp].img);
-        elElements[temp] = null;
+                    document.body.removeChild(elElements[i].img)
+
+                    if (elElements[i].type === "ameter" || elElements[i].type == "vmetar") {
+                        document.body.removeChild(elElements[i].info);
+                    }
+
+                    if (elElements[i].ManagedLineParraler)
+                        elElements[i].ManagedLineParraler.remove();
+                    if (elElements[i].ManagedLineSerialn)
+                        elElements[i].ManagedLineSerialn.remove();
+
+
+                    elElements[i] = null;
+
+                }
+            }
+
+            currentMovingElementId = false;
+        } else {
+            temp.mouseUp(e);
+
+            document.body.removeChild(temp.img);
+
+            elElements[currentMovingElementId] = null;
+        }
     });
 
 
@@ -796,7 +913,6 @@ function Update() {
             Z = Math.sqrt(Math.pow(r.otp, 2) + Math.pow(Math.abs(omega * l.l * Math.pow(10, -3) - (1 / (omega * c.cap * Math.pow(10, -6)))), 2));
         } else return;
 
-        console.log(Z);
         I = s.voltage / Z;
 
 

@@ -16,6 +16,10 @@ body {
     -ms-user-select: none;
 }
 
+.elelement:hover {
+    cursor: move;
+}
+
 .dock {
     z-index: 2;
     border-style: solid;
